@@ -1,6 +1,6 @@
 # Ours
 .vscode/
-dataset/
+datasets/
 reference/previous_results
 
 # Byte-compiled / optimized / DLL files
