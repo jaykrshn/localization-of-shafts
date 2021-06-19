@@ -97,16 +97,16 @@ def data_generator(img_paths, ann_paths, batch_size):
                 row = 0
 
                 for cell_x, cell_y in zip(grid_x, grid_y):
-                    if y_train[i, int(cell_x), int(cell_y), 1, 4] == 0:
+                    if y_train[i, int(cell_x), int(cell_y), 0, 4] == 0:
+                        y_train = store_annot(i, cell_x, cell_y, 0,
+                                              annot, row, y_train)
+
+                    elif y_train[i, int(cell_x), int(cell_y), 1, 4] == 0:
                         y_train = store_annot(i, cell_x, cell_y, 1,
                                               annot, row, y_train)
 
-                    elif y_train[i, int(cell_x), int(cell_y), 2, 4] == 0:
-                        y_train = store_annot(i, cell_x, cell_y, 2,
-                                              annot, row, y_train)
-
                     else:
-                        y_train = store_annot(i, cell_x, cell_y, 3,
+                        y_train = store_annot(i, cell_x, cell_y, 2,
                                               annot, row, y_train)
 
                     row = row+1
