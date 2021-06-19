@@ -2,6 +2,7 @@
 .vscode/
 datasets/
 reference/previous_results
+*.h5
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
