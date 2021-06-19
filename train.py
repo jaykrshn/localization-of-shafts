@@ -121,12 +121,13 @@ def main():
     # Training params
 
     EPOCHS = 10
+    BS = 4
 
     # Loading Data
-    # TRAIN_DATASET_PATH = Path("datasets/128_multilayer/train")
-    # VALID_DATASET_PATH = Path("datasets/128_multilayer/valid")
-    TRAIN_DATASET_PATH = Path("datasets/practice/train_m")
-    VALID_DATASET_PATH = Path("datasets/practice/valid_m")
+    TRAIN_DATASET_PATH = Path("datasets/128_multilayer/train")
+    VALID_DATASET_PATH = Path("datasets/128_multilayer/valid")
+    # TRAIN_DATASET_PATH = Path("datasets/practice/train_m")
+    # VALID_DATASET_PATH = Path("datasets/practice/valid_m")
 
     train_img_paths = list(TRAIN_DATASET_PATH.glob("**/*.bmp"))
     train_ann_paths = list(TRAIN_DATASET_PATH.glob("**/*.txt"))
@@ -141,8 +142,8 @@ def main():
     print('num of valid samples: ', num_valid_samples)
 
     # Creating data generators
-    train_datagen = data_generator(train_img_paths, train_ann_paths, 2)
-    validation_datagen = data_generator(valid_img_paths, valid_ann_paths, 2)
+    train_datagen = data_generator(train_img_paths, train_ann_paths, BS)
+    validation_datagen = data_generator(valid_img_paths, valid_ann_paths, BS)
 
     # Create model
     model = Sequential([
