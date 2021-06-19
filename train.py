@@ -121,7 +121,7 @@ def main():
     # Training params
 
     EPOCHS = 10
-    BS = 4
+    BS = 2
 
     # Loading Data
     TRAIN_DATASET_PATH = Path("datasets/128_multilayer/train")
