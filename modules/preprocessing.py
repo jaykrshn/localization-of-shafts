@@ -22,6 +22,16 @@ def preprocess_annot(annot_path, image_shape):
     return annot
 
 
+def filter_annot(annot_path, check_params):
+
+    annot = np.loadtxt(annot_path)
+    # print(image_shape)
+    # print(annot.shape)
+    # annot = np.delete(annot, obj=[], axis=0)
+
+    return annot
+
+
 def draw_annot(image, annot):
     """Plot the center point and represent the angle using a line
     TODO: Remove line_len_b option. Use x_0, y_0 instead.
