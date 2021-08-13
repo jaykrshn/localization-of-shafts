@@ -84,7 +84,7 @@ def data_generator(img_paths, ann_paths, batch_size):
 
                 img = cv2.imread(str(img_name), 0)
                 img = cv2.resize(img, (128, 128))
-                img = img/128
+                img = img/255
 
                 # storing x_values back to back
                 x_train[i, :, :, 0] = img

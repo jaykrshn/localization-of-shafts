@@ -3,6 +3,7 @@
 datasets/
 reference/previous_results
 *.h5
+outputs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
