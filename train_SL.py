@@ -61,7 +61,7 @@ def create_outputs_dir(tag=""):
     return output_dir_name
 
 
-def draw_annot(image, x_0, y_0, gamma, conf):
+def draw_annot(image, x_0, y_0, gamma, conf, output_file="predicted.png"):
     plt.figure(figsize=[6, 6])
     plt.imshow(image)
     plt.scatter(x_0, y_0, color='r', s=40, marker="o")
@@ -71,8 +71,8 @@ def draw_annot(image, x_0, y_0, gamma, conf):
         x_2 = x_1 + line_len*math.cos(angle)
         y_2 = y_1 + line_len*math.sin(angle)
         plt.plot([x_1, x_2], [y_1, y_2], color='r')
-    plt.show()
-    plt.savefig("predicted.png")
+    # plt.show()
+    plt.savefig(output_file)
 
 
 def filter_annot(annot_path, check_params=[128]):
@@ -169,20 +169,20 @@ def custom_loss(y_true, y_pred):
     NO_OBJECT_SCALE = 8.0
     # CLASS_SCALE = 1.0
 
-    mask_shape = tf.shape(y_true)[:4]
+    mask_shape = tf.shape(y_true)[: 4]
 
     coord_mask = tf.zeros(mask_shape)
     direction_mask = tf.zeros(mask_shape)
     conf_mask = tf.zeros(mask_shape)
     # class_mask = tf.zeros(mask_shape)
 
-    pred_xy = (y_pred[..., 0:2])
-    pred_exy = (y_pred[..., 2:4])
+    pred_xy = (y_pred[..., 0: 2])
+    pred_exy = (y_pred[..., 2: 4])
     pred_conf = y_pred[..., 4]
     # pred_class = y_pred[..., 5:]
 
-    true_xy = y_true[..., 0:2]
-    true_exy = y_true[..., 2:4]
+    true_xy = y_true[..., 0: 2]
+    true_exy = y_true[..., 2: 4]
     true_conf = y_true[..., 4]
     # true_class = y_true[..., 5:]
 
@@ -249,19 +249,58 @@ def decode_annot(output):
     return x_0, y_0, gamma, conf  # , classes
 
 
+def save_predictions(img_file_list, model, output_path, limit=10):
+    """Predict and save images based on model
+
+    Args:
+        img_file_list (list): Image file paths
+        model (tensorflow.model): Trained model
+        output_path (str): Path to save images
+        limit (int, optional): Maximum number of images to be predicted. Defaults to 10.
+
+    """
+
+    # Limiting the prediction dataset
+    img_file_list = img_file_list[:limit]
+
+    for img_f in img_file_list:
+        img = cv2.imread(str(img_f), 0)
+        img_ = cv2.resize(img, (128, 128))
+        img_ = img_ / 255
+        img_ = np.expand_dims(img_, axis=-1)
+        img_ = np.expand_dims(img_, axis=0)
+        out = model.predict(img_)
+        reshaped = out.reshape((16, 16, 5))
+
+        x, y, gamma, conf = decode_annot(reshaped)
+        max_conf = np.max(reshaped[:, :, 4])
+        print('max confidence = ', max_conf)
+        draw_annot(img_, x, y, gamma, conf, f"{output_path}/{img_f.stem}.png")
+
+    return None
+
+
 def main():
 
-    # Training params
+    # Create output folder
+    OUTPUT_DIR_PATH = create_outputs_dir()
 
+    # Training params
     EPOCHS = 200
     BS = 8
 
     # Loading Data
     TRAIN_DATASET_PATH = Path("datasets/128_singlelayer/train")
     VALID_DATASET_PATH = Path("datasets/128_singlelayer/valid")
+    REAL_DATASET_PATH = Path("datasets/real_shafts_sl")
+
+    # TRAIN_DATASET_PATH = Path("datasets/train_10")
+    # VALID_DATASET_PATH = Path("datasets/valid_10")
+    # REAL_DATASET_PATH = Path("datasets/real_shafts_sl_10")
 
     train_img_paths = list(TRAIN_DATASET_PATH.glob("**/*.bmp"))
     train_ann_paths = list(TRAIN_DATASET_PATH.glob("**/*.txt"))
+    real_img_paths = list(REAL_DATASET_PATH.glob("**/*.bmp"))
 
     valid_img_paths = list(VALID_DATASET_PATH.glob("**/*.bmp"))
     valid_ann_paths = list(VALID_DATASET_PATH.glob("**/*.txt"))
@@ -378,7 +417,7 @@ def main():
                         verbose=1)
 
     # Saving the trained model
-    model.save("trained_SL.h5")
+    model.save(f"{OUTPUT_DIR_PATH}/trained_SL.h5")
 
     # Evaluating Accuracy and Loss
 
@@ -397,35 +436,29 @@ def main():
     # Plot training and validation accuracy per epoch
     # ------------------------------------------------
     plt.figure()
-    plt.plot(epochs,     acc,   label='training')
+    plt.plot(epochs, acc, label='training')
     plt.plot(epochs, val_acc, label='validation')
     plt.legend(loc='upper left')
     plt.title('Training and validation accuracy')
-    plt.savefig("training-accurcy-plot.png")
+    plt.savefig(f"{OUTPUT_DIR_PATH}/training-accurcy-plot.png")
 
     # ------------------------------------------------
     # Plot training and validation loss per epoch
     # ------------------------------------------------
     plt.figure()
-    plt.plot(epochs, loss,    label='training')
+    plt.plot(epochs, loss, label='training')
     plt.plot(epochs, val_loss, label='validation')
     plt.legend(loc='upper left')
     plt.title('Training and validation loss')
-    plt.savefig("training-loss-plot.png")
+    plt.savefig(f"{OUTPUT_DIR_PATH}/training-loss-plot.png")
 
+    # ------------------------------------------------
     # PREDICTION
-    img = cv2.imread(str(valid_img_paths[50]), 0)
-    img_ = cv2.resize(img, (128, 128))
-    img_ = img_ / 255
-    img_ = np.expand_dims(img_, axis=-1)
-    img_ = np.expand_dims(img_, axis=0)
-    out = model.predict(img_)
-    reshaped = out.reshape((16, 16, 5))
-
-    x, y, gamma, conf = decode_annot(reshaped)
-    max_conf = np.max(reshaped[:, :, 4])
-    print('max confidence = ', max_conf)
-    draw_annot(img, x, y, gamma, conf)
+    # ------------------------------------------------
+    save_predictions(valid_img_paths, model,
+                     output_path=f"{OUTPUT_DIR_PATH}/valid_predictions")
+    save_predictions(real_img_paths, model,
+                     output_path=f"{OUTPUT_DIR_PATH}/real_predictions")
 
     return None
 
