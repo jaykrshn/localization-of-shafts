@@ -1,5 +1,6 @@
 import math
 from pathlib import Path
+from datetime import datetime
 import numpy as np
 import cv2
 import tensorflow as tf
@@ -11,7 +12,53 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoa
 from tensorflow.keras.layers import Conv2D, Activation, Dense, Dropout, Softmax, LeakyReLU, BatchNormalization, AveragePooling2D, Reshape
 from tensorflow.keras.optimizers import RMSprop, Adam
 from tensorflow.keras.models import Sequential
-#from tensorflow.keras.losses import CategoricalCrossentropy, BinaryCrossentropy, SparseCategoricalCrossentropy, MeanSquaredError
+# from tensorflow.keras.losses import CategoricalCrossentropy, BinaryCrossentropy, SparseCategoricalCrossentropy, MeanSquaredError
+
+
+def create_dir(dir_name):
+    """Check if dir_name/ exits and create directory if not exits
+
+    Args:
+        dir_name (str): Name of dir to be created
+
+    Returns:
+        None: [description]
+    """
+    Path(dir_name).mkdir(parents=True, exist_ok=True)
+
+    return None
+
+
+def get_timestamp():
+    """Create timestamp sting
+
+    Returns:
+        str: Timestamp
+    """
+    time_info = datetime.today()
+    timestamp = f"{time_info.year}-{time_info.month}-{time_info.day}-{time_info.hour}-{time_info.minute}"
+
+    return timestamp
+
+
+def create_outputs_dir(tag=""):
+    """Creates output direcotry template
+
+    Args:
+        tag (str, optional): Optional tag appended to output dir. Defaults to "".
+
+    Returns:
+        str: Path to output folder
+    """
+    # Get timestamp, append tag and create "outputs/output_dir_name"
+    output_dir_name = f"outputs/{get_timestamp()}_{tag}"
+    create_dir(output_dir_name)
+
+    # Create empty subfolders in <timestamp>/ for valid_predictions/, real_predictions/
+    create_dir(f"{output_dir_name}/valid_predictions")
+    create_dir(f"{output_dir_name}/real_predictions")
+
+    return output_dir_name
 
 
 def draw_annot(image, x_0, y_0, gamma, conf):
@@ -24,7 +71,7 @@ def draw_annot(image, x_0, y_0, gamma, conf):
         x_2 = x_1 + line_len*math.cos(angle)
         y_2 = y_1 + line_len*math.sin(angle)
         plt.plot([x_1, x_2], [y_1, y_2], color='r')
-    plt.show
+    plt.show()
     plt.savefig("predicted.png")
 
 
@@ -96,11 +143,16 @@ def data_generator(img_paths, ann_paths, batch_size):
 
                 for cell_x, cell_y in zip(grid_x, grid_y):
                     if ((annot[row, 5] + annot[row, 6])*0.5) > 0.6:
-                        y_train[i, int(cell_y), int(cell_x), 0, 0] = float(annot[row, 1]/8 % 1)
-                        y_train[i, int(cell_y), int(cell_x), 0, 1] = float(annot[row, 1]/8 % 1)
-                        y_train[i, int(cell_y), int(cell_x), 0, 2] = float(( math.sin(annot[row, 3]))**2)  # I_xx
-                        y_train[i, int(cell_y), int(cell_x), 0, 3] = float((math.sin(2*annot[row, 4])+1)*0.5)  # I_xy
-                        y_train[i, int(cell_y), int(cell_x), 0, 4] = 1.0  # conf
+                        y_train[i, int(cell_y), int(cell_x), 0, 0] = float(
+                            annot[row, 1]/8 % 1)
+                        y_train[i, int(cell_y), int(cell_x), 0,
+                                1] = float(annot[row, 1]/8 % 1)
+                        y_train[i, int(cell_y), int(cell_x), 0, 2] = float(
+                            (math.sin(annot[row, 3]))**2)  # I_xx
+                        y_train[i, int(cell_y), int(cell_x), 0, 3] = float(
+                            (math.sin(2*annot[row, 4])+1)*0.5)  # I_xy
+                        y_train[i, int(cell_y), int(cell_x),
+                                0, 4] = 1.0  # conf
                         # y_train[i, int(cell_y), int(cell_x), 0, 5] = annot[row, 0]  # class
                         row = row+1
 
@@ -115,34 +167,34 @@ def custom_loss(y_true, y_pred):
     COORD_SCALE = 4.0
     OBJECT_SCALE = 20.0
     NO_OBJECT_SCALE = 8.0
-    #CLASS_SCALE = 1.0
+    # CLASS_SCALE = 1.0
 
     mask_shape = tf.shape(y_true)[:4]
 
     coord_mask = tf.zeros(mask_shape)
     direction_mask = tf.zeros(mask_shape)
     conf_mask = tf.zeros(mask_shape)
-    #class_mask = tf.zeros(mask_shape)
+    # class_mask = tf.zeros(mask_shape)
 
     pred_xy = (y_pred[..., 0:2])
     pred_exy = (y_pred[..., 2:4])
     pred_conf = y_pred[..., 4]
-    #pred_class = y_pred[..., 5:]
+    # pred_class = y_pred[..., 5:]
 
     true_xy = y_true[..., 0:2]
     true_exy = y_true[..., 2:4]
     true_conf = y_true[..., 4]
-    #true_class = y_true[..., 5:]
+    # true_class = y_true[..., 5:]
 
     coord_mask = tf.expand_dims(y_true[..., 4], axis=-1) * COORD_SCALE
     direction_mask = tf.expand_dims(y_true[..., 4], axis=-1) * DIRECTION_SCALE
     conf_mask = conf_mask + (1 - y_true[..., 4]) * NO_OBJECT_SCALE
     conf_mask = conf_mask + y_true[..., 4] * OBJECT_SCALE
-    #class_mask = tf.expand_dims(y_true[..., 4], axis=-1) * CLASS_SCALE
+    # class_mask = tf.expand_dims(y_true[..., 4], axis=-1) * CLASS_SCALE
 
     nb_coord_kpp = tf.reduce_sum(tf.cast(coord_mask > 0.0, dtype=tf.float32))
     nb_conf_kpp = tf.reduce_sum(tf.cast(conf_mask > 0.0, dtype=tf.float32))
-    #nb_class_kpp = tf.reduce_sum(tf.cast(class_mask > 0.0, dtype=tf.float32))
+    # nb_class_kpp = tf.reduce_sum(tf.cast(class_mask > 0.0, dtype=tf.float32))
 
     loss_xy = tf.reduce_sum(tf.square(true_xy-pred_xy)
                             * coord_mask) / (nb_coord_kpp + 1e-6) / 2.
@@ -150,7 +202,7 @@ def custom_loss(y_true, y_pred):
                              * direction_mask) / (nb_coord_kpp + 1e-6) / 2.
     loss_conf = tf.reduce_sum(
         tf.square(true_conf-pred_conf) * conf_mask) / (nb_conf_kpp + 1e-6) / 2.
-    #loss_class = tf.reduce_sum(tf.square(true_class-pred_class) * class_mask) / (nb_class_kpp + 1e-6) / 2.
+    # loss_class = tf.reduce_sum(tf.square(true_class-pred_class) * class_mask) / (nb_class_kpp + 1e-6) / 2.
 
     # loss_class = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=true_class, logits=pred_class)
     # loss_class = tf.reduce_sum(loss_class * class_mask) / (nb_coord_box + 1e-6)
@@ -176,7 +228,7 @@ def decode_annot(output):
     y_0 = []
     gamma = []
     conf = []
-    #classes= []
+    # classes= []
     for i in range(16):
         for j in range(16):
 
@@ -187,8 +239,9 @@ def decode_annot(output):
                 Y = output[i, j, 1]*grid_h + grid_h*i
                 y_0.append(Y)
 
-                #angle = 0.5*math.asin((2*output[i, j, 3] - 1))
-                angle = float(math.atan2(output[i, j, 2] * 2, output[i, j, 3] * 2 - 1))
+                # angle = 0.5*math.asin((2*output[i, j, 3] - 1))
+                angle = float(math.atan2(
+                    output[i, j, 2] * 2, output[i, j, 3] * 2 - 1))
                 gamma.append(angle)
                 conf.append(output[i, j, 4])
                 # classes.append(output[i,j,5])
@@ -321,7 +374,7 @@ def main():
                         steps_per_epoch=num_train_samples,
                         validation_steps=num_valid_samples,
                         epochs=EPOCHS,
-                        callbacks=[early_stop,l_rate],
+                        callbacks=[early_stop, l_rate],
                         verbose=1)
 
     # Saving the trained model
