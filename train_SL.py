@@ -1,6 +1,7 @@
 import math
 from pathlib import Path
 from datetime import datetime
+import argparse
 import numpy as np
 import cv2
 import tensorflow as tf
@@ -281,16 +282,14 @@ def save_predictions(img_file_list, model, output_path, limit=10):
     return None
 
 
-def main():
+def main(args):
 
     # Create output folder
     OUTPUT_DIR_PATH = create_outputs_dir()
 
     # Training params
-    # EPOCHS = 200
-    # BS = 8
-    EPOCHS = 5
-    BS = 1
+    EPOCHS = args.epochs
+    BS = args.bs
 
     # Loading Data
     # TRAIN_DATASET_PATH = Path("datasets/128_singlelayer/train")
@@ -474,4 +473,20 @@ def main():
 
 if __name__ == "__main__":
 
-    main()
+    # Create the parser
+    parser = argparse.ArgumentParser(description="Train yolo")
+
+    # Add the arguments
+    parser.add_argument("--epochs",
+                        type=int,
+                        default=1,
+                        help="Number of training Epochs")
+    parser.add_argument("--bs",
+                        type=int,
+                        default=1,
+                        help="Batch size")
+
+    # Execute the parse_args() method
+    args = parser.parse_args()
+
+    main(args)
