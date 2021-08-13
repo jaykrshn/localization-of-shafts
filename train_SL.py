@@ -57,6 +57,7 @@ def create_outputs_dir(tag=""):
     # Create empty subfolders in <timestamp>/ for valid_predictions/, real_predictions/
     create_dir(f"{output_dir_name}/valid_predictions")
     create_dir(f"{output_dir_name}/real_predictions")
+    create_dir(f"{output_dir_name}/logs")
 
     return output_dir_name
 
@@ -265,8 +266,8 @@ def save_predictions(img_file_list, model, output_path, limit=10):
 
     for img_f in img_file_list:
         img = cv2.imread(str(img_f), 0)
-        img_ = cv2.resize(img, (128, 128))
-        img_ = img_ / 255
+        img = cv2.resize(img, (128, 128))
+        img_ = img / 255
         img_ = np.expand_dims(img_, axis=-1)
         img_ = np.expand_dims(img_, axis=0)
         out = model.predict(img_)
@@ -275,7 +276,7 @@ def save_predictions(img_file_list, model, output_path, limit=10):
         x, y, gamma, conf = decode_annot(reshaped)
         max_conf = np.max(reshaped[:, :, 4])
         print('max confidence = ', max_conf)
-        draw_annot(img_, x, y, gamma, conf, f"{output_path}/{img_f.stem}.png")
+        draw_annot(img, x, y, gamma, conf, f"{output_path}/{img_f.stem}.png")
 
     return None
 
@@ -286,17 +287,19 @@ def main():
     OUTPUT_DIR_PATH = create_outputs_dir()
 
     # Training params
-    EPOCHS = 200
-    BS = 8
+    # EPOCHS = 200
+    # BS = 8
+    EPOCHS = 5
+    BS = 1
 
     # Loading Data
-    TRAIN_DATASET_PATH = Path("datasets/128_singlelayer/train")
-    VALID_DATASET_PATH = Path("datasets/128_singlelayer/valid")
-    REAL_DATASET_PATH = Path("datasets/real_shafts_sl")
+    # TRAIN_DATASET_PATH = Path("datasets/128_singlelayer/train")
+    # VALID_DATASET_PATH = Path("datasets/128_singlelayer/valid")
+    # REAL_DATASET_PATH = Path("datasets/real_shafts_sl")
 
-    # TRAIN_DATASET_PATH = Path("datasets/train_10")
-    # VALID_DATASET_PATH = Path("datasets/valid_10")
-    # REAL_DATASET_PATH = Path("datasets/real_shafts_sl_10")
+    TRAIN_DATASET_PATH = Path("datasets/train_10")
+    VALID_DATASET_PATH = Path("datasets/valid_10")
+    REAL_DATASET_PATH = Path("datasets/real_shafts_sl_10")
 
     train_img_paths = list(TRAIN_DATASET_PATH.glob("**/*.bmp"))
     train_ann_paths = list(TRAIN_DATASET_PATH.glob("**/*.txt"))
@@ -393,18 +396,19 @@ def main():
                                mode='min',
                                verbose=1)
 
-    # checkpoint = ModelCheckpoint(saved_weights_name,
-    #                                  monitor='val_loss',
-    #                                  verbose=1,
-    #                                  save_best_only=True,
-    #                                  save_weights_only=False,
-    #                                  mode='min',
-    #                                  period=1)
-    # tensorboard = TensorBoard(log_dir=os.path.expanduser('~/logs/'),
-    #                               histogram_freq=0,
-    #                               # write_batch_performance=True,
-    #                               write_graph=True,
-    #                               write_images=False)
+    checkpoint = ModelCheckpoint(f"{OUTPUT_DIR_PATH}/trained_SL_best.h5",
+                                 monitor='val_loss',
+                                 verbose=1,
+                                 save_best_only=True,
+                                 save_weights_only=False,
+                                 mode='min',
+                                 period=1)
+
+    tensorboard = TensorBoard(log_dir=f"{OUTPUT_DIR_PATH}/logs",
+                              histogram_freq=0,
+                              # write_batch_performance=True,
+                              write_graph=True,
+                              write_images=False)
 
     l_rate = LearningRateScheduler(lr_scheduler, verbose=1)
 
@@ -413,11 +417,12 @@ def main():
                         steps_per_epoch=num_train_samples,
                         validation_steps=num_valid_samples,
                         epochs=EPOCHS,
-                        callbacks=[early_stop, l_rate],
+                        callbacks=[early_stop, l_rate,
+                                   tensorboard, checkpoint],
                         verbose=1)
 
     # Saving the trained model
-    model.save(f"{OUTPUT_DIR_PATH}/trained_SL.h5")
+    model.save(f"{OUTPUT_DIR_PATH}/trained_SL_last.h5")
 
     # Evaluating Accuracy and Loss
 
@@ -440,7 +445,7 @@ def main():
     plt.plot(epochs, val_acc, label='validation')
     plt.legend(loc='upper left')
     plt.title('Training and validation accuracy')
-    plt.savefig(f"{OUTPUT_DIR_PATH}/training-accurcy-plot.png")
+    plt.savefig(f"{OUTPUT_DIR_PATH}/training-accuracy-plot.png")
 
     # ------------------------------------------------
     # Plot training and validation loss per epoch
@@ -451,6 +456,10 @@ def main():
     plt.legend(loc='upper left')
     plt.title('Training and validation loss')
     plt.savefig(f"{OUTPUT_DIR_PATH}/training-loss-plot.png")
+
+    # ------------------------------------------------
+    # Load best weights
+    # ------------------------------------------------
 
     # ------------------------------------------------
     # PREDICTION
