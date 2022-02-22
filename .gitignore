@@ -4,6 +4,11 @@ datasets/
 reference/previous_results
 *.h5
 outputs/
+generator_3kpp.ipynb
+generator_SL.ipynb
+singlelayer.ipynb
+train.py
+project_report/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
